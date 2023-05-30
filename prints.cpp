@@ -1,4 +1,3 @@
-
 #include "functions.h"
 #include "prints.h"
 #include "fort.hpp"
@@ -15,7 +14,9 @@ void printMenu()
 	table << fort::header
 		<< "A" << "Add new users, tasks or projects" << fort::endr
 		<< fort::separator
-		<< "P" << "Print all users, tasks or projects" << fort::endr
+		<< "P" << "Print desired information" << fort::endr
+		<< fort::separator
+		<< "C" << "Count tasks or projects" << fort::endr
 		<< fort::separator
 		<< "R" << "Read data in" << fort::endr
 		<< fort::separator
@@ -28,9 +29,6 @@ void printMenu()
 
 	table.column(0).set_cell_text_align(fort::text_align::center);
 	table.column(1).set_cell_text_align(fort::text_align::left);
-	//table.row(0).set_cell_content_fg_color(fort::color::red);
-	//table[0][0].set_cell_bg_color(fort::color::blue);
-	//table[0][1].set_cell_bg_color(fort::color::light_blue);
 
 	std::cout << table.to_string() << std::endl;
 }
@@ -75,9 +73,7 @@ void printPrinting()
 		<< fort::separator
 		<< "2" << "I want to sort..." << fort::endr
 		<< fort::separator
-		<< "3" << "I want to print everything" << fort::endr
-		<< fort::separator
-		<< "4" << "Return to the menu" << fort::endr
+		<< "3" << "Return to the menu" << fort::endr
 		<< fort::endr;
 
 	table.column(0).set_cell_text_align(fort::text_align::center);
@@ -159,9 +155,34 @@ void printDeleting()
 		<< fort::separator
 		<< "4" << "Delete tasks by date" << fort::endr
 		<< fort::separator
-		<< "5" << "Delete project by date" << fort::endr
+		<< "5" << "Delete projects by date" << fort::endr
 		<< fort::separator
 		<< "6" << "Return to the menu" << fort::endr
+		<< fort::endr;
+
+	table.column(0).set_cell_text_align(fort::text_align::center);
+	table.column(1).set_cell_text_align(fort::text_align::left);
+
+	std::cout << table.to_string() << std::endl;
+}
+
+
+void printCounting()
+{
+	cout << "Enter username and count..." << endl;
+	fort::char_table table;
+	/* Set table border style */
+	table.set_border_style(FT_BASIC_STYLE);
+
+	// Fill table with data                                                  
+	table << fort::header
+		<< "1" << "all his tasks" << fort::endr
+		<< fort::separator
+		<< "2" << "all his projects" << fort::endr
+		<< fort::separator
+		<< "3" << "all his tasks by priority" << fort::endr
+		<< fort::separator
+		<< "4" << "Return to the menu" << fort::endr
 		<< fort::endr;
 
 	table.column(0).set_cell_text_align(fort::text_align::center);
@@ -248,6 +269,8 @@ void printProject(const Project& project)
 	table << fort::header
 		<< "Name: " << project.project_name << fort::endr
 		<< fort::separator
+		<< "ID: " << project.project_id << fort::endr
+		<< fort::separator
 		<< "Due Date: " << std::put_time(&project.due_date, "%Y-%m-%d") << fort::endr
 		<< fort::endr;
 
@@ -270,8 +293,9 @@ void printTasks()
 }
 
 
-void printProjectsForUser(string userName)
+bool printProjectsForUser(string userName)
 {
+	int counter{ 0 };
 	fort::char_table table;
 	/* Set table border style */
 	table.set_border_style(FT_BASIC_STYLE);
@@ -279,18 +303,26 @@ void printProjectsForUser(string userName)
 	if (userid == -1)
 	{
 		cout << "User not found." << endl;
-		return;
+		return false;
 	}
 	for (const Project& project : projects)
 	{
 		if (project.user_id == userid)
 		{
 			printProject(project);
+			counter++;
 		}
 	}
+	if (counter == 0) {
+		cout << "User has no projects" << endl;
+		return false;
+	}
+	return true;
 }
-void printTasksForUser(string userName, PriorityLevel prio)
+
+bool printTasksForUser(string userName, PriorityLevel prio)
 {
+	int counter{0};
 	fort::char_table table;
 	/* Set table border style */
 	table.set_border_style(FT_BASIC_STYLE);
@@ -298,14 +330,20 @@ void printTasksForUser(string userName, PriorityLevel prio)
 	if (userid == -1)
 	{
 		cout << "User not found." << endl;
-		return;
+		return false;
 	}
 	for (const Task& task : tasks)
 	{
 		if (task.user_id == userid && (prio == 0 || prio == task.priority_level))
 		{
 			printTask(task);
+			counter++;
 		}
 	}
+	if (counter == 0) {
+		cout << "User has no tasks" << endl;
+		return false;
+	}
+	return true;
 }
 

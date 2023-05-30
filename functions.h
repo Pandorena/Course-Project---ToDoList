@@ -36,9 +36,12 @@ enum SortBy : unsigned char
     Status
 };
 
+enum RemoveType : unsigned char
+{
+    Before = 1,
+    After = 2
+};
 
-
-// User structure
 struct User
 {
     uint64_t user_id;
@@ -46,7 +49,6 @@ struct User
     string name;
 };
 
-// Task structure
 struct Task
 {
     uint64_t user_id;
@@ -58,7 +60,6 @@ struct Task
     PriorityLevel priority_level;
 };
 
-// Project structure
 struct Project
 {
     uint64_t user_id;
@@ -79,6 +80,7 @@ int GetUserId(string username);
 void printMenu();
 void choiceA();
 void choiceP();
+void choiceC();
 void printUsers();
 void printTasks();
 void printProjects();
@@ -86,3 +88,4 @@ void write_txs(const string fname);
 void read_txs(const string fname);
 void deleteTab();
 void deleteAllProjectTasks(string projectName, int& counter);
+int countTasksForUser(string userName);

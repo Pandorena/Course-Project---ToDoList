@@ -31,6 +31,16 @@ int GetProjectId(string project_name)
 	return -1;
 }
 
+void availableUsers()
+{
+	cout << "Available usernames: " << endl;
+	for (const User& user : users)
+	{
+		cout << user.username << endl;
+	}
+}
+
+
 void read_txs(const string fname)
 {
 	ifstream file{ fname, ios::binary };
@@ -149,7 +159,7 @@ void write_txs(const string fname)
 		file.write(project.project_name.c_str(), projectNameSize);
 		file.write(reinterpret_cast<const char*>(&project.due_date), sizeof(project.due_date));
 	}
-
+	cout << "File written successfully." << endl;
 	file.close();
 }
 
@@ -166,6 +176,19 @@ bool isValidtask_id(int task_id)
 	}
 	return false;
 }
+
+bool isValidproject_id(int project_id)
+{
+	for (const auto& project : projects)
+	{
+		if (project.project_id == project_id)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 
 void addUser()
 {
@@ -210,11 +233,8 @@ void addTask()
 	string userName;
 	string project_name;
 
-	cout << "Available usernames: " << endl;
-	for (const User& user : users)
-	{
-		cout << user.username << endl;
-	}
+	availableUsers();
+
 	cin.clear();
 	cin.ignore(numeric_limits<streamsize>::max(), '\n');
 	while (true) {
@@ -287,7 +307,7 @@ void addTask()
 			cout << "Invalid datetime format. Please try again." << endl;
 		}
 	}
-	
+
 	while (true) {
 		cout << "Enter status (1 = Preparation, 2 = InProgress, 3 = Done): ";
 		string status_string;
@@ -338,11 +358,7 @@ void addProject()
 	string userName;
 
 	cout << "Enter the following details for the new project:" << endl;
-	cout << "Available usernames: " << endl;
-	for (const User& user : users)
-	{
-		cout << user.username << endl;
-	}
+	availableUsers();
 	cin.clear();
 	cin.ignore(numeric_limits<streamsize>::max(), '\n');
 	while (true) {
@@ -404,6 +420,7 @@ void addProject()
 
 void printTasksSorted(string username, SortBy type)
 {
+	int counter{ 0 };
 	int userid = GetUserId(username);
 	if (userid == -1)
 	{
@@ -456,7 +473,7 @@ void printTasksSorted(string username, SortBy type)
 		break;
 	case SortBy::Username:
 		std::sort(userTasks.begin(), userTasks.end(), [](const Task& a, const Task& b)
-			{ return a.user_id < b.user_id; });
+			{ return a.task_name < b.task_name; });
 		break;
 	case SortBy::Priority:
 		std::sort(userTasks.begin(), userTasks.end(), [](const Task& a, const Task& b)
@@ -469,16 +486,19 @@ void printTasksSorted(string username, SortBy type)
 	}
 
 
-
-
 	for (const Task& task : userTasks)
 	{
 		printTask(task);
+		counter++;
+	}
+	if (counter == 0) {
+		cout << "User has no tasks that satisfy your conditions." << endl;
 	}
 }
 
 void deleteUser()
 {
+	availableUsers();
 	int countertasks{ 0 };
 	int counterprojects{ 0 };
 	string userName;
@@ -530,6 +550,7 @@ void deleteUser()
 void deleteTask()
 {
 	string userName;
+	availableUsers();
 	cout << "Enter the username of the user whose tasks you want to delete: ";
 	cin >> userName;
 	int userid = GetUserId(userName);
@@ -539,6 +560,9 @@ void deleteTask()
 		return;
 	}
 
+	if (!printTasksForUser(userName)) {
+		return;
+	}
 	string task_id_string;
 	int task_id{ 0 };
 	cout << "Enter the task ID of the task you want to delete: ";
@@ -561,7 +585,7 @@ void deleteTask()
 		return;
 	}
 
-	
+
 	for (int i = 0; i < tasks.size(); ++i)
 	{
 		if (tasks[i].task_id == task_id && tasks[i].user_id == userid)
@@ -572,25 +596,50 @@ void deleteTask()
 			return;
 		}
 	}
-	cout << "Task not found." << endl;
 }
 
 void deleteProject()
 {
+	for (const User& user : users)
+	{
+		cout << user.username << endl;
+	}
 	int taskscounter{ 0 };
 	string userName;
+	string project_id_string;
 	cout << "Enter the username of the user whose projects you want to delete: ";
 	cin >> userName;
-	cout << endl;
 	int userid = GetUserId(userName);
 	if (userid == -1)
 	{
 		cout << "User not found." << endl;
 		return;
 	}
+	if (!printProjectsForUser(userName)) {
+		return;
+	}
 	int project_id;
 	cout << "Enter the project ID of the project you want to delete: ";
-	cin >> project_id;
+
+	cin.clear();
+	cin.ignore(numeric_limits<streamsize>::max(), '\n');
+	getline(cin, project_id_string);
+	if (project_id_string.empty()) {
+		cout << "Project ID cannot be empty. Please try again." << endl;
+		return;
+	}
+	try { project_id = stoi(project_id_string); }
+	catch (std::exception)
+	{
+		cout << "Invalid project ID. Please try again." << endl;
+		return;
+	}
+	if (!isValidproject_id(project_id))
+	{
+		cout << "Project with this ID does not exist." << endl;
+		return;
+	}
+
 	cout << endl;
 	for (int i = 0; i < projects.size(); ++i)
 	{
@@ -599,20 +648,11 @@ void deleteProject()
 			deleteAllProjectTasks(projects[i].project_name, taskscounter);
 			projects.erase(projects.begin() + i);
 			cout << "Project deleted successfully!" << endl;
+			cout << "Tasks deleted: " << taskscounter << endl;
 			return;
 		}
 	}
-	cout << "Project not found." << endl;
 }
-
-
-enum RemoveType : unsigned char
-{
-	Before = 1,
-	After = 2
-};
-
-
 
 
 void deleteAllProjectTasks(string projectName, int& counter)
@@ -634,15 +674,16 @@ void deleteAllProjectTasks(string projectName, int& counter)
 	}
 }
 
-void printTasksByDate(RemoveType type)
+void printTasksByDate(RemoveType type, const string& username)
 {
+	int userid = GetUserId(username);
 	int counter{ 0 };
 
 	std::tm tm = {};
 	while (true)
 	{
 		string userString;
-		cout << "Enter the date: ";
+		cout << "Enter the date (format: YYYY-MM-DD): ";
 		cin >> userString;
 		cout << endl;
 		std::istringstream iss(userString);
@@ -652,39 +693,50 @@ void printTasksByDate(RemoveType type)
 			break;
 		}
 	}
-	std::time_t userDate = std::mktime(&tm);
-	for (int i = 0; i < tasks.size(); ++i)
+	std::time_t userDate;
+	std::tm tempTm = tm;
+	userDate = std::mktime(&tempTm);
+
+	for (const Task& task : tasks)
 	{
-		std::time_t taskDate = std::mktime(&tasks[i].due_date);
-		double aux = std::difftime(userDate, taskDate);
-		if (aux > 0 && type == Before)
+		if (task.user_id == userid)
 		{
-			printTask(tasks[i]);
-			counter++;
-		}
-		else if (aux < 0 && type == After)
-		{
-			printTask(tasks[i]);
-			counter++;
+			std::time_t taskDate;
+			std::tm taskTm = task.due_date;
+			taskDate = std::mktime(&taskTm);
+
+			double aux = std::difftime(userDate, taskDate);
+			if (aux > 0 && type == Before)
+			{
+				printTask(task);
+				counter++;
+			}
+			else if (aux < 0 && type == After)
+			{
+				printTask(task);
+				counter++;
+			}
 		}
 	}
+
 	if (counter == 0 && type == Before) {
-		cout << "You don't have any tasks before date: " << std::put_time(&tm, "%Y-%m-%d") << endl;
+		cout << "User doesn't have any tasks before date: " << std::put_time(&tm, "%Y-%m-%d") << endl;
 	}
 	else if (counter == 0 && type == After) {
-		cout << "You don't have any tasks after date: " << std::put_time(&tm, "%Y-%m-%d") << endl;
+		cout << "User doesn't have any tasks after date: " << std::put_time(&tm, "%Y-%m-%d") << endl;
 	}
 }
 
-
-void printProjectsByDate(RemoveType type)
+void printProjectsByDate(RemoveType type, const string& username)
 {
+	int userid = GetUserId(username);
 	int counter{ 0 };
+
 	std::tm tm = {};
 	while (true)
 	{
 		string userString;
-		cout << "Enter the date: ";
+		cout << "Enter the date (format: YYYY-MM-DD): ";
 		cin >> userString;
 		cout << endl;
 		std::istringstream iss(userString);
@@ -694,40 +746,56 @@ void printProjectsByDate(RemoveType type)
 			break;
 		}
 	}
-	std::time_t userDate = std::mktime(&tm);
-	for (int i = 0; i < projects.size(); ++i)
+	std::time_t userDate;
+	std::tm tempTm = tm;
+	userDate = std::mktime(&tempTm);
+
+	for (const Project& project : projects)
 	{
-		std::time_t taskDate = std::mktime(&tasks[i].due_date);
-		double aux = std::difftime(userDate, taskDate);
-		if (aux > 0 && type == Before)
+		if (project.user_id == userid)
 		{
-			printProject(projects[i]);
-			counter++;
-		}
-		else if (aux < 0 && type == After)
-		{
-			printProject(projects[i]);
-			counter++;
+			std::time_t projectDate;
+			std::tm projectTm = project.due_date;
+			projectDate = std::mktime(&projectTm);
+
+			double aux = std::difftime(userDate, projectDate);
+			if (aux > 0 && type == Before)
+			{
+				printProject(project);
+				counter++;
+			}
+			else if (aux < 0 && type == After)
+			{
+				printProject(project);
+				counter++;
+			}
 		}
 	}
+
 	if (counter == 0 && type == Before) {
-		cout << "You don't have any projects before date: " << std::put_time(&tm, "%Y-%m-%d") << endl;
+		cout << "User doesn't have any projects before date: " << std::put_time(&tm, "%Y-%m-%d") << endl;
 	}
 	else if (counter == 0 && type == After) {
-		cout << "You don't have any projects after date: " << std::put_time(&tm, "%Y-%m-%d") << endl;
+		cout << "User doesn't have any projects after date: " << std::put_time(&tm, "%Y-%m-%d") << endl;
 	}
 }
 
 
-void deleteProjectsByDate(RemoveType type)
+
+void deleteProjectsByDate(RemoveType type, const string& username)
 {
+	int userid = GetUserId(username);
+
 	int counter{ 0 };
 	int taskscounter{ 0 };
+	if (!printProjectsForUser(username)) {
+		return;
+	}
 	std::tm tm = {};
 	while (true)
 	{
 		string userString;
-		cout << "Enter the date: ";
+		cout << "Enter the date (format: YYYY-MM-DD): ";
 		cin >> userString;
 		cout << endl;
 		std::istringstream iss(userString);
@@ -737,38 +805,61 @@ void deleteProjectsByDate(RemoveType type)
 			break;
 		}
 	}
-	std::time_t userDate = std::mktime(&tm);
+
+	std::time_t userDate;
+	std::tm tempTm = tm;
+	userDate = std::mktime(&tempTm);
+
 	for (int i = 0; i < projects.size(); ++i)
 	{
-		std::time_t projectDate = std::mktime(&projects[i].due_date);
-		double aux = std::difftime(userDate, projectDate);
-		if (aux < 0 && type == After)
+		const Project& project = projects[i];
+		if (project.user_id == userid)
 		{
-			deleteAllProjectTasks(projects[i].project_name, taskscounter);
-			projects.erase(projects.begin() + i);
-			counter++;
-			--i;
-		}
-		else if (aux > 0 && type == Before)
-		{
-			deleteAllProjectTasks(projects[i].project_name, taskscounter);
-			projects.erase(projects.begin() + i);
-			counter++;
-			--i;
+			std::time_t projectDate;
+			std::tm projectTm = project.due_date;
+			projectDate = std::mktime(&projectTm);
+
+			double aux = std::difftime(userDate, projectDate);
+			if (aux < 0 && type == After)
+			{
+				deleteAllProjectTasks(project.project_name, taskscounter);
+				projects.erase(projects.begin() + i);
+				counter++;
+				--i;
+			}
+			else if (aux > 0 && type == Before)
+			{
+				deleteAllProjectTasks(project.project_name, taskscounter);
+				projects.erase(projects.begin() + i);
+				counter++;
+				--i;
+			}
 		}
 	}
+
 	cout << "Total projects removed: " << counter << endl;
 	cout << "Total tasks removed: " << taskscounter << endl;
 }
 
-void deleteTasksByDate(RemoveType type)
+
+void deleteTasksByDate(RemoveType type, const string& username)
 {
+	int userid = GetUserId(username);
+	if (userid == -1)
+	{
+		cout << "User not found." << endl;
+		return;
+	}
+	if (!printTasksForUser(username)) {
+		return;
+	}
 	int counter{ 0 };
+
 	std::tm tm = {};
 	while (true)
 	{
 		string userString;
-		cout << "Enter the date: ";
+		cout << "Enter the date (format: YYYY-MM-DD) ";
 		cin >> userString;
 		cout << endl;
 		std::istringstream iss(userString);
@@ -778,27 +869,99 @@ void deleteTasksByDate(RemoveType type)
 			break;
 		}
 	}
-	std::time_t userDate = std::mktime(&tm);
+	std::time_t userDate;
+	std::tm tempTm = tm;
+	userDate = std::mktime(&tempTm);
+
 	for (int i = 0; i < tasks.size(); ++i)
 	{
-		std::time_t taskDate = std::mktime(&tasks[i].due_date);
-		double aux = std::difftime(userDate, taskDate);
-		if (aux < 0 && type == Before)
+		const Task& task = tasks[i];
+		if (task.user_id == userid)
 		{
-			tasks.erase(tasks.begin() + i);
-			--i;
-			counter++;
-		}
-		else if (aux > 0 && type == After)
-		{
-			tasks.erase(tasks.begin() + i);
-			--i;
-			counter++;
+			std::time_t taskDate;
+			std::tm taskTm = task.due_date;
+			taskDate = std::mktime(&taskTm);
+
+			double aux = std::difftime(userDate, taskDate);
+			if (aux > 0 && type == Before)
+			{
+				tasks.erase(tasks.begin() + i);
+				--i;
+				counter++;
+			}
+			else if (aux < 0 && type == After)
+			{
+				tasks.erase(tasks.begin() + i);
+				--i;
+				counter++;
+			}
 		}
 	}
+
 	cout << "Total tasks removed: " << counter << endl;
 }
 
+
+int countTasksForUser(string userName)
+{
+	int counter{ 0 };
+	int userid = GetUserId(userName);
+	if (userid == -1)
+	{
+		cout << "User not found." << endl;
+		return -1;
+	}
+	for (const Task& task : tasks)
+	{
+		if (task.user_id == userid)
+		{
+			counter++;
+		}
+	}
+	return counter;
+}
+
+int countProjectsForUser(string userName)
+{
+	int counter{ 0 };
+	int userid = GetUserId(userName);
+	if (userid == -1)
+	{
+		cout << "User not found." << endl;
+		return -1;
+	}
+	for (const Project& project : projects)
+	{
+		if (project.user_id == userid)
+		{
+			counter++;
+		}
+	}
+	return counter;
+}
+
+int countTasksForUserByPrio(string userName, PriorityLevel prio)
+{
+	int counter{ 0 };
+	int userid = GetUserId(userName);
+	if (userid == -1)
+	{
+		cout << "User not found." << endl;
+		return -1;
+	}
+	for (const Task& task : tasks)
+	{
+		if (task.user_id == userid && (prio == 0 || prio == task.priority_level))
+		{
+			counter++;
+		}
+	}
+	if (counter == 0) {
+		cout << "User has no tasks with this priority" << endl;
+		return -1;
+	}
+	return counter;
+}
 
 
 
@@ -811,6 +974,8 @@ void deleteTab()
 		printDeleting();
 		cin >> choice;
 		int date;
+		string userName;
+		int userid{ 0 };
 		switch (choice)
 		{
 		case '1':
@@ -823,7 +988,17 @@ void deleteTab()
 			deleteProject();
 			break;
 		case '4':
-			cout << "You want to delete tasks before or after some date?" << endl << "(Enter 1 for before and 2 for after)";
+			availableUsers();
+			cout << "Enter username: ";
+			cin.ignore();
+			getline(cin, userName);
+			userid = GetUserId(userName);
+			if (userid == -1)
+			{
+				cout << "User not found." << endl;
+				continue;
+			}
+			cout << "You want to delete tasks before or after some date?" << endl << "Enter 1 for before and 2 for after: ";
 			cin >> date;
 			cin.clear();
 			cin.ignore(numeric_limits<streamsize>::max(), '\n');
@@ -832,23 +1007,31 @@ void deleteTab()
 				cout << "Invalid choice, try again." << endl;
 				continue;
 			}
-			deleteTasksByDate((RemoveType)date);
+			deleteTasksByDate((RemoveType)date, userName);
 			break;
 		case '5':
-			while (true)
+			availableUsers();
+			cout << "Enter username: ";
+			cin.ignore();
+			getline(cin, userName);
+			userid = GetUserId(userName);
+			if (userid == -1)
 			{
-				cout << "You want to delete project before or after some date?" << endl << "(Enter 1 for before and 2 for after)";
-				cin >> date;
-				cin.clear();
-				cin.ignore(numeric_limits<streamsize>::max(), '\n');
-				if (date <= 0 || date >= 3)
-				{
-					cout << "Invalid choice, try again." << endl;
-					continue;
-				}
-				deleteProjectsByDate((RemoveType)date);
-				break;
+				cout << "User not found." << endl;
+				continue;
 			}
+
+			cout << "You want to delete project before or after some date?" << endl << "Enter 1 for before and 2 for after: ";
+			cin >> date;
+			cin.clear();
+			cin.ignore(numeric_limits<streamsize>::max(), '\n');
+			if (date <= 0 || date >= 3)
+			{
+				cout << "Invalid choice, try again." << endl;
+				continue;
+			}
+			deleteProjectsByDate((RemoveType)date, userName);
+			break;
 		case '6':
 			cout << "Returning to the menu." << endl;
 			break;
@@ -897,13 +1080,15 @@ void choiceP()
 	{
 		cout << "Select what you want to print" << endl;
 		printPrinting();
-		
+
 		cin >> choiceP;
 		string userName;
+		string date_string;
 		int date;
 		switch (choiceP)
 		{
 		case '1':           //I want to select username and
+			int userid;
 			char choicePU;
 			do
 			{
@@ -913,43 +1098,61 @@ void choiceP()
 				switch (choicePU)
 				{
 				case '1':   //print all his tasks
-					cout << "Available usernames: " << endl;
-					for (const User& user : users)
-					{
-						cout << user.username << endl;
-					}
-					cout << "Enter user's username: ";
+					availableUsers();
+					cout << "Enter username: ";
 					cin.ignore();
 					getline(cin, userName);
 					printTasksForUser(userName);
 					break;
 				case '2':   //print all his projects
-					cout << "Available usernames: " << endl;
-					for (const User& user : users)
-					{
-						cout << user.username << endl;
-					}
-					cout << "Enter user's username: ";
+					availableUsers();
+					cout << "Enter username: ";
 					cin.ignore();
 					getline(cin, userName);
 					printProjectsForUser(userName);
 					break;
 				case '3':   //print all the tasks that end before or after some date
-					cout << "You want to print tasks before or after some date?" << endl << "(Enter 1 for Before and 2 for After)";
-					
-					cin >> date;
-					cin.clear();
-					cin.ignore(numeric_limits<streamsize>::max(), '\n');
-					if (date <= 0 || date >= 3)
+					availableUsers();
+					cout << "Enter username: ";
+					cin.ignore();
+					getline(cin, userName);
+					userid = GetUserId(userName);
+					if (userid == -1)
 					{
+						cout << "User not found." << endl;
+						continue;
+					}
+					cout << "You want to print tasks before or after some date?" << endl << "Enter 1 for Before and 2 for After: ";
+					getline(cin, date_string);
+					if (date_string.empty()) {
+						cout << "This field cannot be empty. Please try again." << endl;
+						continue;
+					}
+					try { date = stoi(date_string); }
+					catch (std::exception)
+					{
+						cout << "Invalid choice. Please try again." << endl;
+						continue;
+					}
+					if (date >= 3 || date <= 0) {
 						cout << "Invalid choice, try again." << endl;
 						continue;
 					}
-					printTasksByDate((RemoveType)date);
+					printTasksByDate((RemoveType)date, userName);
 					break;
 				case '4':   //print projects that end before or after some date
-					cout << "You want to print projects before or after some date?" << endl << "(Enter 1 for Before and 2 for After)";
-					
+					availableUsers();
+					cout << "Enter username: ";
+					cin.ignore();
+					getline(cin, userName);
+					userid = GetUserId(userName);
+					if (userid == -1)
+					{
+						cout << "User not found." << endl;
+						continue;
+					}
+
+					cout << "You want to print projects before or after some date?" << endl << "Enter 1 for Before and 2 for After: ";
 					cin >> date;
 					cin.clear();
 					cin.ignore(numeric_limits<streamsize>::max(), '\n');
@@ -958,7 +1161,7 @@ void choiceP()
 						cout << "Invalid choice, try again." << endl;
 						continue;
 					}
-					printProjectsByDate((RemoveType)date);
+					printProjectsByDate((RemoveType)date, userName);
 					break;
 				case '5':
 					cout << "Returning to the menu." << endl;
@@ -980,45 +1183,29 @@ void choiceP()
 				switch (choicePS)
 				{
 				case '1':   //sort all his tasks by date
-					cout << "Available usernames: " << endl;
-					for (const User& user : users)
-					{
-						cout << user.username << endl;
-					}
-					cout << "Enter user's username: ";
+					availableUsers();
+					cout << "Enter username: ";
 					cin.ignore();
 					getline(cin, userName);
 					printTasksSorted(userName, Date);
 					break;
 				case '2':   //sort all his tasks by date in reverse order
-					cout << "Available usernames: " << endl;
-					for (const User& user : users)
-					{
-						cout << user.username << endl;
-					}
-					cout << "Enter user's username: ";
+					availableUsers();
+					cout << "Enter username: ";
 					cin.ignore();
 					getline(cin, userName);
 					printTasksSorted(userName, DateReverse);
 					break;
 				case '3':   //sort all his tasks by username
-					cout << "Available usernames: " << endl;
-					for (const User& user : users)
-					{
-						cout << user.username << endl;
-					}
-					cout << "Enter user's username: ";
+					availableUsers();
+					cout << "Enter username: ";
 					cin.ignore();
 					getline(cin, userName);
 					printTasksSorted(userName, Username);
 					break;
 				case '4':   //sort all his tasks by priority
-					cout << "Available usernames: " << endl;
-					for (const User& user : users)
-					{
-						cout << user.username << endl;
-					}
-					cout << "Enter user's username: ";
+					availableUsers();
+					cout << "Enter username: ";
 					cin.ignore();
 					getline(cin, userName);
 					printTasksSorted(userName, Priority);
@@ -1032,14 +1219,7 @@ void choiceP()
 				}
 			} while (choicePS != '5');
 			break;
-
-		case '3':   //print everything
-			printUsers();
-			printTasks();
-			printProjects();
-			break;
-
-		case '4':
+		case '3':
 			cout << "Returning to the menu." << endl;
 			break;
 
@@ -1047,7 +1227,82 @@ void choiceP()
 			cout << "Invalid choice. Please try again." << endl;
 			break;
 		}
-	} while (choiceP != '4');
+	} while (choiceP != '3');
+}
+
+
+void choiceC()
+{
+	char choiceC;
+	string userName;
+	int userid{ 0 };
+	int priorityLevel{ 0 };
+	do
+	{
+		printCounting();
+		cin >> choiceC;
+
+		switch (choiceC)
+		{
+		case '1': // count tasks
+			availableUsers();
+			cout << "Enter username: ";
+			cin.ignore();
+			getline(cin, userName);
+			userid = GetUserId(userName);
+			if (userid == -1)
+			{
+				cout << "User not found." << endl;
+				continue;
+			}
+			cout << "User has " << countTasksForUser(userName) << " task(s)" << endl;
+			break;
+		case '2': // count projects
+			availableUsers();
+			cout << "Enter username: ";
+			cin.ignore();
+			getline(cin, userName);
+			userid = GetUserId(userName);
+			if (userid == -1)
+			{
+				cout << "User not found." << endl;
+				continue;
+			}
+			cout << "User has " << countProjectsForUser(userName) << " project(s)" << endl;
+			break;
+		case '3': // count tasks by prio
+			availableUsers();
+			cout << "Enter username: ";
+			cin.ignore();
+			getline(cin, userName);
+			userid = GetUserId(userName);
+			if (userid == -1)
+			{
+				cout << "User not found." << endl;
+				continue;
+			}
+			cout << "Enter priority level (1 = Low, 2 = Medium, 3 = High): ";
+
+			cin >> priorityLevel;
+			cin.clear();
+			cin.ignore(numeric_limits<streamsize>::max(), '\n');
+			if (priorityLevel > 3 || priorityLevel < 1) {
+				cout << "Invalid priority level. Please try again." << endl;
+				continue;
+			}
+			if (countTasksForUserByPrio(userName, (PriorityLevel)priorityLevel) == -1) {
+				continue;
+			}
+			cout << "User has " << countTasksForUserByPrio(userName, (PriorityLevel)priorityLevel) << " task(s) with " << PriorityNames[(PriorityLevel)priorityLevel] << " priority" << endl;
+			break;
+		case '4':
+			cout << "Returning to the menu." << endl;
+			break;
+		default:
+			cout << "Invalid choice. Please try again." << endl;
+			break;
+		}
+	} while (choiceC != '4');	 
 }
 
 

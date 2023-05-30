@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "functions.h"
 
@@ -34,5 +34,6 @@ void printProject(const Project& project);
 void printProjects();
 void printUsers();
 void printTasks();
-void printTasksForUser(string userName, PriorityLevel prio = (PriorityLevel)0);
-void printProjectsForUser(string userName);
+bool printTasksForUser(string userName, PriorityLevel prio = (PriorityLevel)0);
+bool printProjectsForUser(string userName);
+void printCounting();

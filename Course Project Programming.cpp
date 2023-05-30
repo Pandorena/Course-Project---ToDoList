@@ -5,8 +5,8 @@ using namespace std;
 
 int main()
 {
-    setlocale(LC_CTYPE, "");
     string fname;
+    string quit_answer;
     cout << "Hello, users, welcome to ToDoList created by Veronika Soldatyenkova." << endl;
     char choice;
     do
@@ -25,6 +25,9 @@ int main()
             break;
         case 'P':
             choiceP();
+            break;
+        case 'C':
+            choiceC();
             break;
         case 'W':
             cout << "You selected: Write data out." << endl;
@@ -55,7 +58,32 @@ int main()
             deleteTab();
             break;
         case 'Q':
-            cout << "Quitting program." << endl;
+            cout << "Do you want to save your data?" << endl;
+            std::cin.clear();
+            std::cin.ignore();
+            while (true) {
+                cout << "Enter Y,y or N,n: ";
+                getline(cin, quit_answer);
+                if (quit_answer == "Y" || quit_answer == "y") {
+                    cout << "Enter filename: ";
+                    std::cin.clear();
+                    std::cin.ignore();
+                    getline(cin, fname);
+                    if (fname.empty()) {
+                        cout << "Filename cannot be empty. Please try again." << endl;
+                        break;
+                    }
+                    write_txs(fname);
+                    break;
+                }
+                else if (quit_answer == "N" || quit_answer == "n") {
+                    cout << "Quitting program." << endl;
+                    break;
+                }
+                else {
+                    cout << "Wrong answer. Try again" << endl;
+                }
+            }
             break;
         default:
             cout << "Invalid choice. Please try again." << endl;
